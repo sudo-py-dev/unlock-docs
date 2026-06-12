@@ -28,7 +28,7 @@ jobs:
 
       # Android Signing Setup (Only on Linux runner)
       - name: Decode Keystore
-        if: matrix.os == 'ubuntu-latest' && secrets.KEYSTORE_BASE64 != ''
+        if: matrix.os == 'ubuntu-latest' && ${{ secrets.KEYSTORE_BASE64 != '' }}
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: echo $KEYSTORE_BASE64 | base64 --decode > release.jks
