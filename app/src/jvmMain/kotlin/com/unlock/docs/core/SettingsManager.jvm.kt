@@ -59,4 +59,28 @@ actual object SettingsManager {
         props.setProperty("language", language.name)
         save()
     }
+
+    actual fun isAuditLoggingEnabled(): Boolean = props.getProperty("audit_logging", "false").toBoolean()
+    actual fun setAuditLoggingEnabled(enabled: Boolean) {
+        props.setProperty("audit_logging", enabled.toString())
+        save()
+    }
+
+    actual fun isNotificationsEnabled(): Boolean = props.getProperty("notifications", "false").toBoolean()
+    actual fun setNotificationsEnabled(enabled: Boolean) {
+        props.setProperty("notifications", enabled.toString())
+        save()
+    }
+
+    actual fun isAdvancedRulesEnabled(): Boolean = props.getProperty("advanced_rules", "false").toBoolean()
+    actual fun setAdvancedRulesEnabled(enabled: Boolean) {
+        props.setProperty("advanced_rules", enabled.toString())
+        save()
+    }
+
+    actual fun isSessionResumptionEnabled(): Boolean = props.getProperty("session_resumption", "true").toBoolean()
+    actual fun setSessionResumptionEnabled(enabled: Boolean) {
+        props.setProperty("session_resumption", enabled.toString())
+        save()
+    }
 }

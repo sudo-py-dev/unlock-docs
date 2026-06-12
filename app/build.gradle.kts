@@ -41,6 +41,7 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
         }
         val androidMain by getting {
             kotlin.srcDir("src/jvmMain/kotlin")

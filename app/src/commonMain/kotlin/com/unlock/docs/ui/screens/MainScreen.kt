@@ -69,6 +69,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.unlock.docs.core.UnlockEngine
+import com.unlock.docs.core.AuditLogger
+import com.unlock.docs.core.NotificationManager
+import com.unlock.docs.core.RuleEngine
+import com.unlock.docs.core.SessionManager
+import com.unlock.docs.core.SettingsManager
 import com.unlock.docs.core.format.HandlerRegistry
 import com.unlock.docs.i18n.LocalStrings
 import com.unlock.docs.ui.components.FilePicker
@@ -78,10 +83,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flatMapConcat
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.drop
 
 enum class AttackMode { PATTERN, WORDLIST }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Composable
 fun MainScreen(onNavigateToSettings: () -> Unit, onNavigateToAbout: () -> Unit) {
     val strings = LocalStrings.current
@@ -99,6 +107,8 @@ fun MainScreen(onNavigateToSettings: () -> Unit, onNavigateToAbout: () -> Unit) 
     var currentChecked by remember { mutableStateOf(0L) }
     var totalProgress by remember { mutableStateOf(0L) }
     var showResultDialog by remember { mutableStateOf(false) }
+    var showResumeDialog by remember { mutableStateOf(false) }
+    var pendingResumeOffset by remember { mutableStateOf(0L) }
 
     // Mode State
     var currentMode by remember { mutableStateOf(AttackMode.PATTERN) }
@@ -117,6 +127,111 @@ fun MainScreen(onNavigateToSettings: () -> Unit, onNavigateToAbout: () -> Unit) 
     var threadCount by remember { mutableStateOf(1f) }
 
     val coroutineScope = rememberCoroutineScope()
+
+    fun startBruteForce(path: String, offset: Long) {
+        isRunning = true
+        result = "${strings.progress}..."
+        foundPassword = null
+        currentChecked = offset
+        totalProgress = if (currentMode == AttackMode.PATTERN) {
+            PatternGenerator.countPasswords(
+                pattern,
+                minLen.toIntOrNull() ?: 1,
+                maxLen.toIntOrNull() ?: 4
+            )
+        } else {
+            wordlistPath?.let { WordlistReader.countPasswords(it) } ?: 0L
+        }
+
+        coroutineScope.launch(Dispatchers.Default) {
+            val startTime = kotlinx.datetime.Clock.System.now().epochSeconds
+            val lower = path.lowercase()
+            val handler = if (lower.endsWith(".zip")) HandlerRegistry.zipHandler else HandlerRegistry.officeHandler
+
+            if (handler == null) {
+                result = "Unsupported format"
+                isRunning = false
+                return@launch
+            }
+
+            val engine = UnlockEngine(handler, path)
+
+            val progressJob = launch {
+                var lastProgress = 0L
+                var lastSaveTime = 0L
+                while (isActive) {
+                    delay(1000)
+                    val current = engine.progress.value + offset
+                    currentChecked = current
+                    speed = current - offset - lastProgress
+                    lastProgress = current - offset
+
+                    if (SettingsManager.isSessionResumptionEnabled()) {
+                        val now = kotlinx.datetime.Clock.System.now().epochSeconds
+                        if (now - lastSaveTime >= 10) { // Save every 10 seconds
+                            SessionManager.saveSession(path, currentMode.name, current)
+                            lastSaveTime = now
+                        }
+                    }
+                }
+            }
+
+            val basePasswords =
+                if (currentMode == AttackMode.PATTERN) {
+                    PatternGenerator.generatePasswords(
+                        pattern,
+                        minLen.toIntOrNull() ?: 1,
+                        maxLen.toIntOrNull() ?: 4,
+                    )
+                } else {
+                    wordlistPath?.let { WordlistReader.readPasswords(it) }
+                        ?: kotlinx.coroutines.flow.emptyFlow()
+                }
+
+            val droppedPasswords = if (offset > 0) basePasswords.drop(offset.toInt()) else basePasswords
+
+            val passwords = if (SettingsManager.isAdvancedRulesEnabled()) {
+                droppedPasswords.flatMapConcat { word -> RuleEngine.applyRules(word).asFlow() }
+            } else {
+                droppedPasswords
+            }
+
+            val found = engine.unlock(passwords, concurrency = threadCount.toInt())
+            progressJob.cancel()
+
+            val endTime = kotlinx.datetime.Clock.System.now().epochSeconds
+            val duration = endTime - startTime
+
+            foundPassword = found
+            result =
+                if (found != null) {
+                    "${strings.passwordFound} $found"
+                } else {
+                    strings.passwordNotFound
+                }
+
+            if (SettingsManager.isAuditLoggingEnabled()) {
+                AuditLogger.logAttack(
+                    filePath = path,
+                    mode = currentMode.name,
+                    durationSeconds = duration,
+                    result = if (found != null) "FOUND" else "NOT FOUND"
+                )
+            }
+
+            if (SettingsManager.isNotificationsEnabled()) {
+                NotificationManager.notifyCompletion(success = found != null)
+            }
+            
+            if (found != null || offset + engine.progress.value >= totalProgress) {
+                SessionManager.clearSession(path)
+            }
+
+            isRunning = false
+            speed = 0L
+            showResultDialog = true
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -334,68 +449,13 @@ fun MainScreen(onNavigateToSettings: () -> Unit, onNavigateToAbout: () -> Unit) 
                 onClick = {
                     val path = selectedPath
                     if (path != null && !isRunning) {
-                        isRunning = true
-                        result = "${strings.progress}..."
-                        foundPassword = null
-                        currentChecked = 0L
-                        totalProgress = if (currentMode == AttackMode.PATTERN) {
-                            PatternGenerator.countPasswords(
-                                pattern,
-                                minLen.toIntOrNull() ?: 1,
-                                maxLen.toIntOrNull() ?: 4
-                            )
+                        val savedOffset = SessionManager.getSession(path)
+                        if (SettingsManager.isSessionResumptionEnabled() && savedOffset != null && savedOffset > 0) {
+                            pendingResumeOffset = savedOffset
+                            showResumeDialog = true
                         } else {
-                            wordlistPath?.let { WordlistReader.countPasswords(it) } ?: 0L
-                        }
-
-                        coroutineScope.launch(Dispatchers.Default) {
-                            val lower = path.lowercase()
-                            val handler = if (lower.endsWith(".zip")) HandlerRegistry.zipHandler else HandlerRegistry.officeHandler
-
-                            if (handler == null) {
-                                result = "Unsupported format"
-                                isRunning = false
-                                return@launch
-                            }
-
-                            val engine = UnlockEngine(handler, path)
-                            
-                            val progressJob = launch {
-                                var lastProgress = 0L
-                                while (isActive) {
-                                    delay(1000)
-                                    val current = engine.progress.value
-                                    currentChecked = current
-                                    speed = current - lastProgress
-                                    lastProgress = current
-                                }
-                            }
-
-                            val passwords =
-                                if (currentMode == AttackMode.PATTERN) {
-                                    PatternGenerator.generatePasswords(
-                                        pattern,
-                                        minLen.toIntOrNull() ?: 1,
-                                        maxLen.toIntOrNull() ?: 4,
-                                    )
-                                } else {
-                                    wordlistPath?.let { WordlistReader.readPasswords(it) }
-                                        ?: kotlinx.coroutines.flow.emptyFlow()
-                                }
-
-                            val found = engine.unlock(passwords, concurrency = threadCount.toInt())
-                            progressJob.cancel()
-                            
-                            foundPassword = found
-                            result =
-                                if (found != null) {
-                                    "${strings.passwordFound} $found"
-                                } else {
-                                    strings.passwordNotFound
-                                }
-                            isRunning = false
-                            speed = 0L
-                            showResultDialog = true
+                            // Start fresh
+                            startBruteForce(path, 0L)
                         }
                     }
                 },
@@ -405,6 +465,33 @@ fun MainScreen(onNavigateToSettings: () -> Unit, onNavigateToAbout: () -> Unit) 
                 Text(if (isRunning) strings.stopBruteForce else strings.startBruteForce)
             }
         }
+    }
+
+    if (showResumeDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showResumeDialog = false },
+            title = { Text("Resume Session?") },
+            text = { Text("A previous session was found for this file. Would you like to resume from $pendingResumeOffset?") },
+            confirmButton = {
+                Button(onClick = {
+                    showResumeDialog = false
+                    selectedPath?.let { startBruteForce(it, pendingResumeOffset) }
+                }) {
+                    Text("Resume")
+                }
+            },
+            dismissButton = {
+                Button(onClick = {
+                    showResumeDialog = false
+                    selectedPath?.let { 
+                        SessionManager.clearSession(it)
+                        startBruteForce(it, 0L) 
+                    }
+                }) {
+                    Text("Restart")
+                }
+            }
+        )
     }
 
     if (showResultDialog) {

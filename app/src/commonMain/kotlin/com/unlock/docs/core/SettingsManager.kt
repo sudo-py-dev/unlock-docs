@@ -11,4 +11,16 @@ expect object SettingsManager {
     fun getLanguage(): AppLanguage
 
     fun saveLanguage(language: AppLanguage)
+
+    fun isAuditLoggingEnabled(): Boolean
+    fun setAuditLoggingEnabled(enabled: Boolean)
+
+    fun isNotificationsEnabled(): Boolean
+    fun setNotificationsEnabled(enabled: Boolean)
+
+    fun isAdvancedRulesEnabled(): Boolean
+    fun setAdvancedRulesEnabled(enabled: Boolean)
+
+    fun isSessionResumptionEnabled(): Boolean
+    fun setSessionResumptionEnabled(enabled: Boolean)
 }

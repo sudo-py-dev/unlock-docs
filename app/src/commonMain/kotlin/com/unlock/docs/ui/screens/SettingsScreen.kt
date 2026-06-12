@@ -41,6 +41,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.text.font.FontWeight
 
+import androidx.compose.material3.Switch
+import com.unlock.docs.core.SettingsManager
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -51,6 +56,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
+    val scrollState = rememberScrollState()
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -72,7 +78,7 @@ fun SettingsScreen(
             },
         ) { paddingValues ->
             Column(
-                modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp),
+                modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp).verticalScroll(scrollState),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Spacer(Modifier.height(16.dp))
@@ -149,7 +155,52 @@ fun SettingsScreen(
                         }
                     }
                 }
+
+                Spacer(Modifier.height(32.dp))
+
+                ElevatedCard(modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(strings.advancedFeatures.uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        
+                        var auditEnabled by remember { mutableStateOf(SettingsManager.isAuditLoggingEnabled()) }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(strings.auditLogging)
+                            Switch(checked = auditEnabled, onCheckedChange = {
+                                auditEnabled = it
+                                SettingsManager.setAuditLoggingEnabled(it)
+                            })
+                        }
+
+                        var notificationsEnabled by remember { mutableStateOf(SettingsManager.isNotificationsEnabled()) }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(strings.notifications)
+                            Switch(checked = notificationsEnabled, onCheckedChange = {
+                                notificationsEnabled = it
+                                SettingsManager.setNotificationsEnabled(it)
+                            })
+                        }
+
+                        var advancedRulesEnabled by remember { mutableStateOf(SettingsManager.isAdvancedRulesEnabled()) }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(strings.advancedRules)
+                            Switch(checked = advancedRulesEnabled, onCheckedChange = {
+                                advancedRulesEnabled = it
+                                SettingsManager.setAdvancedRulesEnabled(it)
+                            })
+                        }
+
+                        var sessionResumptionEnabled by remember { mutableStateOf(SettingsManager.isSessionResumptionEnabled()) }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(strings.sessionResumption)
+                            Switch(checked = sessionResumptionEnabled, onCheckedChange = {
+                                sessionResumptionEnabled = it
+                                SettingsManager.setSessionResumptionEnabled(it)
+                            })
+                        }
+                    }
+                }
                 
+                Spacer(Modifier.height(32.dp))
             }
         }
     }

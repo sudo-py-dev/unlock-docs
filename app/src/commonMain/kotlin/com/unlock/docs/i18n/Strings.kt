@@ -32,6 +32,11 @@ data class AppStrings(
     val credits: String,
     val libraries: String,
     val copy: String,
+    val advancedFeatures: String,
+    val auditLogging: String,
+    val notifications: String,
+    val advancedRules: String,
+    val sessionResumption: String,
 )
 
 val EnglishStrings =
@@ -65,6 +70,11 @@ val EnglishStrings =
         credits = "credits",
         libraries = "open source libraries",
         copy = "copy",
+        advancedFeatures = "advanced features",
+        auditLogging = "audit logging",
+        notifications = "notifications",
+        advancedRules = "advanced rules",
+        sessionResumption = "session resumption",
     )
 
 val RussianStrings =
@@ -98,6 +108,11 @@ val RussianStrings =
         credits = "авторы",
         libraries = "библиотеки с открытым кодом",
         copy = "копировать",
+        advancedFeatures = "продвинутые функции",
+        auditLogging = "аудит-логирование",
+        notifications = "уведомления",
+        advancedRules = "продвинутые правила",
+        sessionResumption = "возобновление сессии",
     )
 
 val HebrewStrings =
@@ -131,6 +146,11 @@ val HebrewStrings =
         credits = "קרדיטים",
         libraries = "ספריות קוד פתוח",
         copy = "העתק",
+        advancedFeatures = "תכונות מתקדמות",
+        auditLogging = "תיעוד ביקורת",
+        notifications = "התראות",
+        advancedRules = "כללים מתקדמים",
+        sessionResumption = "חידוש הפעלה",
     )
 
 val LocalStrings = staticCompositionLocalOf { EnglishStrings }
