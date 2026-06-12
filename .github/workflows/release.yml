@@ -91,9 +91,8 @@ jobs:
       - name: Prepare Assets
         run: |
           mkdir -p release-assets
-          # Recursively find all files in the artifacts directory and copy them to release-assets
-          # This handles any directory structure created by download-artifact
-          find artifacts -type f -print -exec cp {} release-assets/ \;
+          # Find and copy only the specific distributable formats: APK, MSI, DMG, DEB
+          find artifacts -type f \( -name "*.apk" -o -name "*.msi" -o -name "*.dmg" -o -name "*.deb" \) -print -exec cp {} release-assets/ \;
           
       - name: Release
         uses: softprops/action-gh-release@v2
