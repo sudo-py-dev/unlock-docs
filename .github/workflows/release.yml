@@ -47,7 +47,7 @@ jobs:
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release.apk
+          name: android-build
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
@@ -91,12 +91,9 @@ jobs:
       - name: Prepare Assets
         run: |
           mkdir -p release-assets
-          # Move Android APK
-          find artifacts -name "*.apk" -exec mv {} release-assets/ \;
-          # Move Desktop Distributions (deb, dmg, msi)
-          find artifacts -name "*.deb" -exec mv {} release-assets/ \;
-          find artifacts -name "*.dmg" -exec mv {} release-assets/ \;
-          find artifacts -name "*.msi" -exec mv {} release-assets/ \;
+          # Recursively find all files in the artifacts directory and copy them to release-assets
+          # This handles any directory structure created by download-artifact
+          find artifacts -type f -print -exec cp {} release-assets/ \;
           
       - name: Release
         uses: softprops/action-gh-release@v2
