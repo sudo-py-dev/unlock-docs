@@ -46,10 +46,17 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            ./gradlew assembleRelease packageReleaseDistributionForCurrentOS
+            ./gradlew :app:assembleRelease :app:packageReleaseDistributionForCurrentOS
           else
-            ./gradlew packageReleaseDistributionForCurrentOS
+            ./gradlew :app:packageReleaseDistributionForCurrentOS
           fi
+
+      - name: Debug File Structure
+        run: |
+          echo "Listing all APKs:"
+          find app/build/outputs/apk -name "*.apk" || echo "No APKs found"
+          echo "Listing all Desktop binaries:"
+          find app/build/compose/binaries/main -maxdepth 3 || echo "No binaries found"
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
