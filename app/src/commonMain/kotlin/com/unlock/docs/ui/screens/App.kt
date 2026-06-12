@@ -1,5 +1,10 @@
 package com.unlock.docs.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -26,10 +31,10 @@ fun App() {
                     onNavigateToAbout = { currentScreen = "about" }
                 )
 
-                androidx.compose.animation.AnimatedVisibility(
+                AnimatedVisibility(
                     visible = currentScreen == "settings",
-                    enter = androidx.compose.animation.slideInVertically { it },
-                    exit = androidx.compose.animation.slideOutVertically { it },
+                    enter = fadeIn() + scaleIn(initialScale = 0.92f),
+                    exit = fadeOut() + scaleOut(targetScale = 0.92f),
                 ) {
                     SettingsScreen(
                         currentTheme = themeMode,
@@ -46,10 +51,10 @@ fun App() {
                     )
                 }
 
-                androidx.compose.animation.AnimatedVisibility(
+                AnimatedVisibility(
                     visible = currentScreen == "about",
-                    enter = androidx.compose.animation.slideInVertically { it },
-                    exit = androidx.compose.animation.slideOutVertically { it },
+                    enter = fadeIn() + scaleIn(initialScale = 0.92f),
+                    exit = fadeOut() + scaleOut(targetScale = 0.92f),
                 ) {
                     AboutScreen(onBack = { currentScreen = "main" })
                 }

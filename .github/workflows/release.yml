@@ -68,8 +68,8 @@ jobs:
           name: build-artifacts-${{ matrix.os }}
           path: |
             app/build/outputs/apk/release/*.apk
-            app/build/compose/binaries/main/msi/*.msi
-            app/build/compose/binaries/main/deb/*.deb
+            app/build/compose/binaries/**/*.msi
+            app/build/compose/binaries/**/*.deb
           if-no-files-found: warn
 
   create-release:
