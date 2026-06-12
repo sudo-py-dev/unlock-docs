@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
     env:
       HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
     steps:
@@ -47,26 +47,29 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            # Build Android APK and Linux DEB
             ./gradlew :app:assembleRelease :app:packageReleaseDistributionForCurrentOS
           else
+            # Build Windows MSI
             ./gradlew :app:packageReleaseDistributionForCurrentOS
           fi
 
       - name: Debug File Structure
         shell: bash
         run: |
-          echo "Listing all APKs:"
+          echo "Targeted search for APKs:"
           find app/build/outputs/apk -name "*.apk" || echo "No APKs found"
-          echo "Listing all Desktop binaries:"
-          find app/build/compose/binaries/main -maxdepth 3 || echo "No binaries found"
+          echo "Targeted search for Desktop binaries:"
+          find app/build/compose/binaries -name "*.msi" -o -name "*.deb" || echo "No distributables found"
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts-${{ matrix.os }}
           path: |
-            ${{ matrix.os == 'ubuntu-latest' && 'app/build/outputs/apk/release/*.apk' || '' }}
-            app/build/compose/binaries/main/**/*
+            app/build/outputs/apk/release/*.apk
+            app/build/compose/binaries/main/msi/*.msi
+            app/build/compose/binaries/main/deb/*.deb
           if-no-files-found: warn
 
   create-release:
@@ -82,7 +85,8 @@ jobs:
       - name: Prepare Assets
         run: |
           mkdir -p release-assets
-          find artifacts -type f \( -name "*.apk" -o -name "*.msi" -o -name "*.dmg" -o -name "*.deb" \) -print -exec cp {} release-assets/ \;
+          # Collect only APK, MSI, and DEB
+          find artifacts -type f \( -name "*.apk" -o -name "*.msi" -o -name "*.deb" \) -print -exec cp {} release-assets/ \;
           
       - name: Release
         uses: softprops/action-gh-release@v2
