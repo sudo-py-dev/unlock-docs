@@ -87,10 +87,17 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = keystoreProperties["KEYSTORE_FILE"]?.let { rootProject.file(it as String) }
-            storePassword = keystoreProperties["KEYSTORE_PASSWORD"] as String?
-            keyAlias = keystoreProperties["KEY_ALIAS"] as String?
-            keyPassword = keystoreProperties["KEY_PASSWORD"] as String?
+            val storeFilePath = (keystoreProperties["KEYSTORE_FILE"] as String?) ?: System.getenv("KEYSTORE_FILE")
+            val storePasswordStr = (keystoreProperties["KEYSTORE_PASSWORD"] as String?) ?: System.getenv("KEYSTORE_PASSWORD")
+            val keyAliasStr = (keystoreProperties["KEY_ALIAS"] as String?) ?: System.getenv("KEY_ALIAS")
+            val keyPasswordStr = (keystoreProperties["KEY_PASSWORD"] as String?) ?: System.getenv("KEY_PASSWORD")
+
+            if (!storeFilePath.isNullOrBlank() && !keyAliasStr.isNullOrBlank()) {
+                storeFile = rootProject.file(storeFilePath)
+                storePassword = storePasswordStr
+                keyAlias = keyAliasStr
+                keyPassword = keyPasswordStr
+            }
         }
     }
 
@@ -102,7 +109,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            if (signingConfigs.getByName("release").storeFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }
