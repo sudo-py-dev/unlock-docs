@@ -65,9 +65,9 @@ jobs:
         with:
           name: build-artifacts-${{ matrix.os }}
           path: |
-            app/build/outputs/apk/release/*.apk
+            ${{ matrix.os == 'ubuntu-latest' && 'app/build/outputs/apk/release/*.apk' || '' }}
             app/build/compose/binaries/main/**/*
-          if-no-files-found: error
+          if-no-files-found: warn
 
   create-release:
     name: Create GitHub Release
