@@ -24,6 +24,7 @@ jobs:
           cache: gradle
 
       - name: Decode Keystore and Setup Local Properties
+        if: env.KEYSTORE_BASE64 != ''
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -69,13 +70,13 @@ jobs:
           cache: gradle
 
       - name: Build Distributables
-        run: ./gradlew createDistributable
+        run: ./gradlew packageReleaseDistributionForCurrentOS
 
       - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: desktop-distributables-${{ matrix.os }}
-          path: app/build/compose/binaries/main/app/*
+          path: app/build/compose/binaries/main/**/*
           if-no-files-found: error
 
   create-release:
