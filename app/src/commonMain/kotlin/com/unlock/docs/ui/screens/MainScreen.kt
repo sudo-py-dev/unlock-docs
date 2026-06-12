@@ -12,23 +12,40 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -46,6 +63,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,13 +76,16 @@ import com.unlock.docs.utils.PatternGenerator
 import com.unlock.docs.utils.WordlistReader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 
 enum class AttackMode { PATTERN, WORDLIST }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(onNavigateToSettings: () -> Unit) {
+fun MainScreen(onNavigateToSettings: () -> Unit, onNavigateToAbout: () -> Unit) {
     val strings = LocalStrings.current
+    val clipboardManager = LocalClipboardManager.current
 
     // Target File State
     var selectedPath by remember { mutableStateOf<String?>(null) }
@@ -71,7 +93,12 @@ fun MainScreen(onNavigateToSettings: () -> Unit) {
 
     // Engine State
     var result by remember { mutableStateOf<String?>(null) }
+    var foundPassword by remember { mutableStateOf<String?>(null) }
     var isRunning by remember { mutableStateOf(false) }
+    var speed by remember { mutableStateOf(0L) }
+    var currentChecked by remember { mutableStateOf(0L) }
+    var totalProgress by remember { mutableStateOf(0L) }
+    var showResultDialog by remember { mutableStateOf(false) }
 
     // Mode State
     var currentMode by remember { mutableStateOf(AttackMode.PATTERN) }
@@ -96,6 +123,9 @@ fun MainScreen(onNavigateToSettings: () -> Unit) {
             TopAppBar(
                 title = { Text(strings.appName, fontWeight = FontWeight.Bold) },
                 actions = {
+                    IconButton(onClick = onNavigateToAbout) {
+                        Icon(Icons.Default.Info, contentDescription = strings.about)
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = strings.settings)
                     }
@@ -119,45 +149,24 @@ fun MainScreen(onNavigateToSettings: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Target File Selection Card
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Folder,
-                        contentDescription = "Folder Icon",
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = { showTargetPicker = true },
-                        modifier = Modifier.fillMaxWidth(0.8f),
-                    ) {
-                        Text(strings.selectFile)
+            OutlinedTextField(
+                value = selectedPath ?: "",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(strings.selectFile) },
+                placeholder = { Text(strings.fileNotSelected) },
+                trailingIcon = {
+                    IconButton(onClick = { showTargetPicker = true }) {
+                        Icon(Icons.Default.Folder, contentDescription = "Select File", tint = MaterialTheme.colorScheme.primary)
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = selectedPath ?: strings.fileNotSelected,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
+                },
+                modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth().animateContentSize(),
+            )
 
             // Attack Mode Selection
             TabRow(
                 selectedTabIndex = currentMode.ordinal,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth(),
             ) {
                 Tab(
                     selected = currentMode == AttackMode.PATTERN,
@@ -172,8 +181,22 @@ fun MainScreen(onNavigateToSettings: () -> Unit) {
             }
 
             // Attack Configuration Card
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                Crossfade(targetState = currentMode) { mode ->
+            ElevatedCard(modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth().animateContentSize()) {
+                AnimatedContent(
+                    targetState = currentMode,
+                    transitionSpec = {
+                        if (targetState > initialState) {
+                            (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
+                                slideOutHorizontally { width -> -width } + fadeOut()
+                            )
+                        } else {
+                            (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
+                                slideOutHorizontally { width -> width } + fadeOut()
+                            )
+                        }.using(SizeTransform(clip = false))
+                    },
+                    label = "Attack Mode Transition"
+                ) { mode ->
                     Column(
                         modifier = Modifier.padding(16.dp).fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -190,50 +213,58 @@ fun MainScreen(onNavigateToSettings: () -> Unit) {
                                 OutlinedTextField(
                                     value = minLen,
                                     onValueChange = { minLen = it },
-                                    label = { Text("Min Length") },
+                                    label = { Text(strings.minLength) },
                                     modifier = Modifier.weight(1f),
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                                 )
                                 OutlinedTextField(
                                     value = maxLen,
                                     onValueChange = { maxLen = it },
-                                    label = { Text("Max Length") },
+                                    label = { Text(strings.maxLength) },
                                     modifier = Modifier.weight(1f),
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                                 )
                             }
                         } else {
                             // Wordlist Configuration
-                            Icon(
-                                imageVector = Icons.Default.Description,
-                                contentDescription = "Wordlist Icon",
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.secondary,
-                            )
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxWidth(0.8f),
+                            var wordlistDropdownExpanded by remember { mutableStateOf(false) }
+                            @OptIn(ExperimentalMaterial3Api::class)
+                            ExposedDropdownMenuBox(
+                                expanded = wordlistDropdownExpanded,
+                                onExpandedChange = { wordlistDropdownExpanded = it },
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Button(
-                                    onClick = { showWordlistPicker = true },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                                OutlinedTextField(
+                                    value = wordlistPath ?: strings.fileNotSelected,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text(strings.wordlistMode) },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = wordlistDropdownExpanded) },
+                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, true).fillMaxWidth(),
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = wordlistDropdownExpanded,
+                                    onDismissRequest = { wordlistDropdownExpanded = false }
                                 ) {
-                                    Text("Local File")
-                                }
-                                Button(
-                                    onClick = { showWordlistManager = true },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
-                                ) {
-                                    Text("Download")
+                                    DropdownMenuItem(
+                                        text = { Text(strings.localFile) },
+                                        onClick = { 
+                                            wordlistDropdownExpanded = false
+                                            showWordlistPicker = true 
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Folder, contentDescription = null) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(strings.download) },
+                                        onClick = { 
+                                            wordlistDropdownExpanded = false
+                                            showWordlistManager = true 
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.CloudDownload, contentDescription = null) }
+                                    )
                                 }
                             }
-                            Text(
-                                text = wordlistPath ?: strings.fileNotSelected,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
                         }
                     }
                 }
@@ -241,10 +272,10 @@ fun MainScreen(onNavigateToSettings: () -> Unit) {
 
             // Thread Selection
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("Threads: ${threadCount.toInt()}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text("${strings.threads}: ${threadCount.toInt()}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 Slider(
                     value = threadCount,
                     onValueChange = { threadCount = it },
@@ -259,12 +290,64 @@ fun MainScreen(onNavigateToSettings: () -> Unit) {
                 selectedPath != null && !isRunning &&
                     (currentMode == AttackMode.PATTERN || wordlistPath != null)
 
+            AnimatedVisibility(
+                visible = isRunning,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+                    if (totalProgress > 0) {
+                        val progressValue = (currentChecked.toFloat() / totalProgress.toFloat()).coerceIn(0f, 1f)
+                        LinearProgressIndicator(
+                            progress = { progressValue },
+                            modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth(0.8f).height(6.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "${(progressValue * 100).toInt()}% ($currentChecked / $totalProgress)",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth(0.8f).height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "$currentChecked",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (speed > 0) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "${strings.speed}: $speed ${strings.passwordsPerSec}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
             Button(
                 onClick = {
                     val path = selectedPath
                     if (path != null && !isRunning) {
                         isRunning = true
                         result = "${strings.progress}..."
+                        foundPassword = null
+                        currentChecked = 0L
+                        totalProgress = if (currentMode == AttackMode.PATTERN) {
+                            PatternGenerator.countPasswords(
+                                pattern,
+                                minLen.toIntOrNull() ?: 1,
+                                maxLen.toIntOrNull() ?: 4
+                            )
+                        } else {
+                            wordlistPath?.let { WordlistReader.countPasswords(it) } ?: 0L
+                        }
+
                         coroutineScope.launch(Dispatchers.Default) {
                             val lower = path.lowercase()
                             val handler = if (lower.endsWith(".zip")) HandlerRegistry.zipHandler else HandlerRegistry.officeHandler
@@ -276,6 +359,17 @@ fun MainScreen(onNavigateToSettings: () -> Unit) {
                             }
 
                             val engine = UnlockEngine(handler, path)
+                            
+                            val progressJob = launch {
+                                var lastProgress = 0L
+                                while (isActive) {
+                                    delay(1000)
+                                    val current = engine.progress.value
+                                    currentChecked = current
+                                    speed = current - lastProgress
+                                    lastProgress = current
+                                }
+                            }
 
                             val passwords =
                                 if (currentMode == AttackMode.PATTERN) {
@@ -290,6 +384,9 @@ fun MainScreen(onNavigateToSettings: () -> Unit) {
                                 }
 
                             val found = engine.unlock(passwords, concurrency = threadCount.toInt())
+                            progressJob.cancel()
+                            
+                            foundPassword = found
                             result =
                                 if (found != null) {
                                     "${strings.passwordFound} $found"
@@ -297,54 +394,60 @@ fun MainScreen(onNavigateToSettings: () -> Unit) {
                                     strings.passwordNotFound
                                 }
                             isRunning = false
+                            speed = 0L
+                            showResultDialog = true
                         }
                     }
                 },
                 enabled = isStartEnabled,
-                modifier = Modifier.fillMaxWidth(0.8f).height(50.dp),
+                modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth(0.8f).height(50.dp),
             ) {
                 Text(if (isRunning) strings.stopBruteForce else strings.startBruteForce)
-            }
-
-            AnimatedVisibility(visible = isRunning) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.8f))
-            }
-
-            AnimatedVisibility(visible = result != null && !isRunning) {
-                ElevatedCard(
-                    colors =
-                        CardDefaults.elevatedCardColors(
-                            containerColor =
-                                if (result?.startsWith(strings.passwordFound) == true) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.errorContainer
-                                },
-                        ),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = result ?: "",
-                        modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.titleMedium,
-                        color =
-                            if (result?.startsWith(strings.passwordFound) == true) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onErrorContainer
-                            },
-                    )
-                }
             }
         }
     }
 
-    FilePicker(show = showTargetPicker) { path ->
+    if (showResultDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showResultDialog = false },
+            title = { Text(strings.appName) },
+            text = { 
+                Text(
+                    text = result ?: "",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (result?.startsWith(strings.passwordFound) == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                )
+            },
+            confirmButton = {
+                Button(onClick = { showResultDialog = false }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                if (foundPassword != null) {
+                    Button(onClick = {
+                        clipboardManager.setText(AnnotatedString(foundPassword!!))
+                        showResultDialog = false
+                    }) {
+                        Text(strings.copy)
+                    }
+                }
+            }
+        )
+    }
+
+    FilePicker(
+        show = showTargetPicker,
+        allowedExtensions = listOf("zip", "rar", "7z", "doc", "docx", "xls", "xlsx", "ppt", "pptx")
+    ) { path ->
         showTargetPicker = false
         if (path != null) selectedPath = path
     }
 
-    FilePicker(show = showWordlistPicker) { path ->
+    FilePicker(
+        show = showWordlistPicker,
+        allowedExtensions = listOf("txt", "csv")
+    ) { path ->
         showWordlistPicker = false
         if (path != null) wordlistPath = path
     }

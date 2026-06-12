@@ -2,14 +2,16 @@ package com.unlock.docs.i18n
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 
 expect fun getSystemLanguage(): String
 
-enum class AppLanguage(val code: String, val strings: AppStrings) {
-    SYSTEM("system", EnglishStrings),
-    EN("en", EnglishStrings),
-    RU("ru", RussianStrings),
-    IW("iw", HebrewStrings),
+enum class AppLanguage(val code: String, val displayName: String, val strings: AppStrings) {
+    SYSTEM("system", "System", EnglishStrings),
+    EN("en", "English", EnglishStrings),
+    RU("ru", "Русский", RussianStrings),
+    IW("iw", "עברית", HebrewStrings),
 }
 
 @Composable
@@ -28,7 +30,12 @@ fun ProvideAppStrings(
             language.strings
         }
 
-    CompositionLocalProvider(LocalStrings provides strings) {
+    val layoutDirection = if (strings === HebrewStrings) LayoutDirection.Rtl else LayoutDirection.Ltr
+
+    CompositionLocalProvider(
+        LocalStrings provides strings,
+        LocalLayoutDirection provides layoutDirection
+    ) {
         content()
     }
 }

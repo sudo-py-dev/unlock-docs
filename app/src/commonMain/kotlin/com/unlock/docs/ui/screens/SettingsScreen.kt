@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
@@ -16,6 +17,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -23,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +35,11 @@ import androidx.compose.ui.unit.dp
 import com.unlock.docs.i18n.AppLanguage
 import com.unlock.docs.i18n.LocalStrings
 import com.unlock.docs.ui.theme.ThemeMode
+import com.unlock.docs.core.AppInfo
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.text.font.FontWeight
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +73,7 @@ fun SettingsScreen(
         ) { paddingValues ->
             Column(
                 modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Spacer(Modifier.height(16.dp))
 
@@ -85,7 +94,7 @@ fun SettingsScreen(
                         label = { Text(strings.themeMode) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = themeExpanded) },
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                        modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable, true).fillMaxWidth(0.8f),
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, true).widthIn(max = 400.dp).fillMaxWidth(0.8f),
                     )
                     ExposedDropdownMenu(
                         expanded = themeExpanded,
@@ -117,13 +126,13 @@ fun SettingsScreen(
                     onExpandedChange = { languageExpanded = it },
                 ) {
                     OutlinedTextField(
-                        value = currentLanguage.name,
+                        value = if (currentLanguage == AppLanguage.SYSTEM) strings.system else currentLanguage.displayName,
                         onValueChange = {},
                         readOnly = true,
                         label = { Text(strings.language) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = languageExpanded) },
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                        modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable, true).fillMaxWidth(0.8f),
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, true).widthIn(max = 400.dp).fillMaxWidth(0.8f),
                     )
                     ExposedDropdownMenu(
                         expanded = languageExpanded,
@@ -131,7 +140,7 @@ fun SettingsScreen(
                     ) {
                         AppLanguage.entries.forEach { lang ->
                             DropdownMenuItem(
-                                text = { Text(lang.name) },
+                                text = { Text(if (lang == AppLanguage.SYSTEM) strings.system else lang.displayName) },
                                 onClick = {
                                     onLanguageChange(lang)
                                     languageExpanded = false
@@ -140,6 +149,7 @@ fun SettingsScreen(
                         }
                     }
                 }
+                
             }
         }
     }

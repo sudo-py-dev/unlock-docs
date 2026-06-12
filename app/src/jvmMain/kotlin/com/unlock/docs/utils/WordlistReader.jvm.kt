@@ -15,4 +15,12 @@ actual object WordlistReader {
                 // Ignore or handle errors gracefully
             }
         }
+
+    actual fun countPasswords(filePath: String): Long {
+        return try {
+            File(filePath).bufferedReader().useLines { lines -> lines.count().toLong() }
+        } catch (e: Exception) {
+            0L
+        }
+    }
 }

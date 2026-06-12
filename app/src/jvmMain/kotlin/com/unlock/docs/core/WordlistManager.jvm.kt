@@ -3,6 +3,7 @@ package com.unlock.docs.core
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -35,11 +36,10 @@ actual object WordlistDownloader {
 
     actual fun downloadWordlist(wordlist: CuratedWordlist): Flow<Float> =
         flow {
-            withContext(Dispatchers.IO) {
-                val file = getFile(wordlist)
-                if (file.exists()) {
+            val file = getFile(wordlist)
+            if (file.exists()) {
                     emit(1.0f)
-                    return@withContext
+                    return@flow
                 }
 
                 var connection: HttpURLConnection? = null
@@ -81,6 +81,5 @@ actual object WordlistDownloader {
                     outputStream?.close()
                     connection?.disconnect()
                 }
-            }
-        }
+        }.flowOn(Dispatchers.IO)
 }

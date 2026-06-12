@@ -8,9 +8,12 @@ import com.unlock.docs.core.format.OfficeHandlerImpl
 import com.unlock.docs.core.format.ZipHandlerImpl
 import com.unlock.docs.ui.screens.App
 
+import androidx.activity.enableEdgeToEdge
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         HandlerRegistry.zipHandler = ZipHandlerImpl()
         HandlerRegistry.officeHandler = OfficeHandlerImpl()

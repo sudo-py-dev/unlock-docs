@@ -68,7 +68,7 @@ android {
     compileSdk = 34
     defaultConfig {
         applicationId = "com.unlock.docs.unlockdocs"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -117,6 +117,9 @@ compose.desktop {
             )
             packageName = "UnlockDocs"
             packageVersion = "1.0.0"
+        }
+        buildTypes.release.proguard {
+            isEnabled = false
         }
     }
 }

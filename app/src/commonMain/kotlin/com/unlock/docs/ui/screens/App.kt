@@ -21,7 +21,10 @@ fun App() {
     ProvideAppStrings(language = language) {
         AppTheme(themeMode = themeMode) {
             Box(modifier = Modifier.fillMaxSize()) {
-                MainScreen(onNavigateToSettings = { currentScreen = "settings" })
+                MainScreen(
+                    onNavigateToSettings = { currentScreen = "settings" },
+                    onNavigateToAbout = { currentScreen = "about" }
+                )
 
                 androidx.compose.animation.AnimatedVisibility(
                     visible = currentScreen == "settings",
@@ -41,6 +44,14 @@ fun App() {
                         },
                         onBack = { currentScreen = "main" },
                     )
+                }
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = currentScreen == "about",
+                    enter = androidx.compose.animation.slideInVertically { it },
+                    exit = androidx.compose.animation.slideOutVertically { it },
+                ) {
+                    AboutScreen(onBack = { currentScreen = "main" })
                 }
             }
         }

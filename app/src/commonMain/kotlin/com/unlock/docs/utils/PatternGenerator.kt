@@ -37,4 +37,31 @@ object PatternGenerator {
                 }
             }
         }
+
+    fun countPasswords(
+        charset: String,
+        minLength: Int,
+        maxLength: Int,
+    ): Long {
+        if (charset.isEmpty() || minLength > maxLength || minLength < 1) return 0
+        var total = 0L
+        val base = charset.length.toLong()
+        for (len in minLength..maxLength) {
+            var currentLenTotal = 1L
+            var overflow = false
+            for (i in 1..len) {
+                if (currentLenTotal > Long.MAX_VALUE / base) {
+                    overflow = true
+                    break
+                }
+                currentLenTotal *= base
+            }
+            
+            if (overflow || total > Long.MAX_VALUE - currentLenTotal) {
+                return Long.MAX_VALUE
+            }
+            total += currentLenTotal
+        }
+        return total
+    }
 }
