@@ -129,6 +129,9 @@ compose.desktop {
             )
             packageName = "UnlockDocs"
             packageVersion = "1.0.0"
+            linux {
+                iconFile.set(project.file("src/commonMain/composeResources/drawable/icon.png"))
+            }
         }
         buildTypes.release.proguard {
             isEnabled = false

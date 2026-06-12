@@ -13,6 +13,10 @@ import com.unlock.docs.ui.screens.App
 
 import com.unlock.docs.core.SettingsManager
 
+import org.jetbrains.compose.resources.painterResource
+import unlock_docs.app.generated.resources.Res
+import unlock_docs.app.generated.resources.icon
+
 fun main() =
     application {
         HandlerRegistry.zipHandler = ZipHandlerImpl()
@@ -23,6 +27,7 @@ fun main() =
         Window(
             onCloseRequest = ::exitApplication,
             title = strings.appName,
+            icon = painterResource(Res.drawable.icon),
             state = rememberWindowState(
                 width = 800.dp,
                 height = 600.dp,
