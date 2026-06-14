@@ -68,6 +68,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Timer
 import com.unlock.docs.core.UnlockEngine
 import com.unlock.docs.core.AuditLogger
 import com.unlock.docs.core.NotificationManager
@@ -410,39 +414,16 @@ fun MainScreen(onNavigateToSettings: () -> Unit, onNavigateToAbout: () -> Unit) 
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-                    if (totalProgress > 0) {
-                        val progressValue = (currentChecked.toFloat() / totalProgress.toFloat()).coerceIn(0f, 1f)
-                        LinearProgressIndicator(
-                            progress = { progressValue },
-                            modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth(0.8f).height(6.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "${(progressValue * 100).toInt()}% ($currentChecked / $totalProgress)",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else {
-                        LinearProgressIndicator(modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth(0.8f).height(6.dp))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "$currentChecked",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    if (speed > 0) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "${strings.speed}: $speed ${strings.passwordsPerSec}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                ProgressCard(
+                    currentChecked = currentChecked,
+                    totalProgress = totalProgress,
+                    speed = speed,
+                    strings = strings,
+                    modifier = Modifier
+                        .widthIn(max = 600.dp)
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                )
             }
 
             Button(
@@ -547,5 +528,214 @@ fun MainScreen(onNavigateToSettings: () -> Unit, onNavigateToAbout: () -> Unit) 
                 showWordlistManager = false
             },
         )
+    }
+}
+
+@Composable
+private fun ProgressCard(
+    currentChecked: Long,
+    totalProgress: Long,
+    speed: Long,
+    strings: com.unlock.docs.i18n.AppStrings,
+    modifier: Modifier = Modifier
+) {
+    val progressValue = if (totalProgress > 0) {
+        (currentChecked.toFloat() / totalProgress.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    
+    val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = progressValue,
+        animationSpec = androidx.compose.material3.ProgressIndicatorDefaults.ProgressAnimationSpec,
+        label = "ProgressAnimation"
+    )
+
+    val etaSeconds = if (speed > 0 && totalProgress > 0) {
+        val remaining = totalProgress - currentChecked
+        (remaining / speed).coerceAtLeast(0L)
+    } else {
+        -1L
+    }
+
+    val formattedEta = remember(etaSeconds) {
+        if (etaSeconds < 0) {
+            "--"
+        } else if (etaSeconds < 60) {
+            "${etaSeconds}s"
+        } else {
+            val minutes = etaSeconds / 60
+            val remainingSeconds = etaSeconds % 60
+            if (minutes < 60) {
+                "${minutes}m ${remainingSeconds}s"
+            } else {
+                val hours = minutes / 60
+                val remainingMinutes = minutes % 60
+                "${hours}h ${remainingMinutes}m"
+            }
+        }
+    }
+
+    ElevatedCard(
+        modifier = modifier,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.5.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = strings.progress + "...",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                
+                if (totalProgress > 0) {
+                    Text(
+                        text = "${(progressValue * 100).toInt()}%",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            if (totalProgress > 0) {
+                LinearProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(5.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                )
+            } else {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(5.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Speed,
+                        contentDescription = "Speed",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (speed > 0) "$speed/s" else "--",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Speed",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(30.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                )
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1.2f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = "Count",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (totalProgress > 0) "$currentChecked/$totalProgress" else "$currentChecked",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "Checked",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(30.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                )
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = "ETA",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = formattedEta,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "ETA",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        }
     }
 }
