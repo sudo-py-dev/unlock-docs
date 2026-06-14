@@ -1,13 +1,15 @@
 package com.unlock.docs.core
 
-import java.awt.Toolkit
-
 actual object NotificationManager {
     actual fun notifyCompletion(success: Boolean) {
         try {
-            Toolkit.getDefaultToolkit().beep()
-        } catch (e: Exception) {
-            // Fallback or ignore
+            val toolkitClass = Class.forName("java.awt.Toolkit")
+            val getDefaultToolkitMethod = toolkitClass.getMethod("getDefaultToolkit")
+            val toolkitInstance = getDefaultToolkitMethod.invoke(null)
+            val beepMethod = toolkitClass.getMethod("beep")
+            beepMethod.invoke(toolkitInstance)
+        } catch (e: Throwable) {
+            // Fallback or ignore on Android/headless JVMs
         }
     }
 }

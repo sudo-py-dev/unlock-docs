@@ -12,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        System.setProperty("user.home", filesDir.absolutePath)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
